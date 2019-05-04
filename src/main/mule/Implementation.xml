@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="10a33807-c6fc-4d49-8740-c23bf645559f" >
+		<db:my-sql-connection host="sql12.freemysqlhosting.net" port="3306" user="sql12285224" password="tqKv6aZjG3" database="sql12285224" />
+	</db:config>
+	<flow name="getCustomersFlow" doc:id="a7247d22-bcce-4f43-971c-12e769c9e7e7" >
+		<db:select doc:name="Select" doc:id="e5471506-6b21-41b0-bb01-683c4e97c7e4" config-ref="Database_Config">
+			<db:sql >select * from t_customers where id = :rid</db:sql>
+			<db:input-parameters ><![CDATA[#[{"rid": attributes.uriParams.customer_id}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="1712cb78-5fb9-4dac-8cfc-53e946d27aa9">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+(payload map ( payload01 , indexOfPayload01 ) -> {
+	customerId: payload01.id default "",
+	email: payload01.email default "",
+	fullName: payload01.name default "",
+	phoneNumber: payload01.phoneNumber default "",
+	addressLine1: payload01.addressLine1 default "",
+	addressLine2: payload01.addressLine2 default "",
+	city: payload01.city default "",
+	state: payload01.state default "",
+	pincode: payload01.postalCode as Number default 0
+})[0]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="customers-wsFlow" doc:id="a3e3438f-ceb1-48be-97ed-96a7112fbe21" >
+		<db:delete doc:name="Delete" doc:id="82ef8c27-a386-4d01-a9b1-54a953610c3b" config-ref="Database_Config">
+			<db:sql >delete from t_customers where id = :rid</db:sql>
+			<db:input-parameters ><![CDATA[#[{"rid": attributes.uriParams.customer_id}]]]></db:input-parameters>
+		</db:delete>
+		<choice doc:name="Choice" doc:id="d8360872-f873-4465-b5fa-697d1b64d749" >
+			<when expression="#[payload==1]">
+				<set-payload value='{message: "customer has been deleted"}' doc:name="Set Payload" doc:id="ff3b6d23-c941-438d-8d88-9899a769f64d" mimeType="application/json"/>
+				<set-variable value="400" doc:name="Set Variable" doc:id="31838ae0-5c3c-4178-9c53-2e3b72198626" variableName="StatusCode"/>
+			</when>
+			<otherwise >
+				<set-payload value='message: "Customer not found"' doc:name="Set Payload" doc:id="6eeef73e-97ad-4b60-a758-35ac400d03da" />
+				<set-variable value="404" doc:name="Set Variable" doc:id="b02781b7-c74c-456c-8095-902136d6e2b1" variableName="StatusCode"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="customers-wsFlow1" doc:id="fe0dc67f-9a3b-4769-a0d1-b30400f9519e" >
+		<ee:transform doc:name="Transform Message" doc:id="d3c4d332-3e3f-4ea6-a565-a787b59c54f5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:insert doc:name="Insert" doc:id="b9a28371-f322-40ab-8bb9-69b660dc39ce" config-ref="Database_Config">
+			<db:sql >insert into t_customers(id,email,phoneNumber,addressLine1,addressLine2,city,state,postalCode) values(:id,:email,:phoneNumber,:addressLine1,:addressLine2,:city,:state,:postalCode))</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id: payload.customerID,
+	email: payload.email
+}]]]></db:input-parameters>
+		</db:insert>
+		<set-payload value='#[output application/json
+---
+if(payload.affectedRows ==1)
+message: "inserted"
+else
+message: "not inseted"]' doc:name="Set Payload" doc:id="0d78cbb3-49d9-49cd-b3e4-288e936d98e2" />
+	</flow>
+</mule>

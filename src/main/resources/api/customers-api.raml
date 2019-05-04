@@ -1,0 +1,74 @@
+#%RAML 1.0
+version: v1
+title: Customers API
+
+types:
+  customer: !include DataTypes/CustomerDataType.raml
+
+traits:
+  server_error_status:
+    responses:
+      500:
+        body:
+          application/json:
+            example:
+              message: Something went wrong. Try again.
+  bad_request_status:
+    responses:
+      400:
+        body:
+          application/json:
+            example:
+              message: bad request.
+  cust_authentication:
+    headers:
+      client_id:
+        type: string
+        required: true
+      Client_Secret:
+        type: string
+        required: true
+              
+/customers:
+  is: [server_error_status,cust_authentication]
+  get:
+    headers:
+      Content-Type: 
+        required: false
+        
+    queryParameters:
+      City:
+        required: true
+        enum: [Bangalore, Chennai, Hyd]
+        example: Bangalore
+        type: string  
+    responses:
+      200:
+        body:
+          application/json:
+            #examples: !include EXAMPLE/CustomersExample.raml
+            type: customer[]
+          application/xml:
+            #examples:
+            type:                 
+  post:
+    body:
+      application/json:
+        #examples: !include EXAMPLE/CustomerExample.raml
+        type: customer[]
+
+  put:
+    body:
+      application/json:
+        #examples: !include EXAMPLE/CustomerExample.raml
+        type: customer[]
+
+  /{customers_id}:
+    is: [server_error_status,cust_authentication]
+    get:
+      responses:
+        200:
+          body:
+           application/json:
+            #examples: !include EXAMPLE/CustomerExample.raml
+            type: customer
